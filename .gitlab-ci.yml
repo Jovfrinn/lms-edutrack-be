@@ -1,0 +1,37 @@
+stages:
+  - sync
+
+sync_to_vendor:
+  stage: sync
+  image: alpine:latest
+  before_script:
+    # 1. Install SSH client dan Git
+    - apk add --no-cache git openssh-client
+    
+    # 2. Jalankan SSH Agent
+    - eval $(ssh-agent -s)
+    
+    # 3. TAHAP SANITASI (Krusial untuk memperbaiki 'error in libcrypto')
+    # Kita hapus karakter \r (Carriage Return) dan simpan ke file sementara
+    - tr -d '\r' < "$SSH_PRIVATE_KEY_OFFICE" > /tmp/id_office
+    - chmod 400 /tmp/id_office
+    - ssh-add /tmp/id_office
+    
+    # 4. Tambahkan GitLab ke Known Hosts
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+    
+    # 5. Konfigurasi Identitas Git
+    - git config --global user.email "bot@ybmbrilian.id"
+    - git config --global user.name "Sync Bot"
+
+  script:
+    # 6. Tambahkan remote vendor
+    - git remote add vendor git@gitlab.com:adimgozali0313/e-learning-ybm-be.git
+    
+    # 7. Push ke vendor dengan logging tambahan untuk debug
+    - git push vendor HEAD:main --force
+  
+  only:
+    - main
